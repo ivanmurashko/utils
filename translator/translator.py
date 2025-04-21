@@ -100,6 +100,7 @@ class FileProcessor:
                     # Skip directories that start with a dot
                     if os.path.basename(root).startswith('.'):
                         continue
+
                     
                     for file in files:
                         if file.startswith('.'):
