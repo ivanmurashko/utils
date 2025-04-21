@@ -20,32 +20,29 @@ class FileProcessor:
         openai.api_key = self.api_key
         start_time = time.time()
         client = openai.OpenAI(api_key=self.api_key)
-        
-        response = client.chat.completions.create(
+
+        response = client.responses.create(
             model="gpt-4.1-mini",
-            messages=[
-                {"role": "system", "content": (
+            instructions=(
                     "You are a translator that processes LaTeX files. "
                     "Translate all Russian text in the LaTeX document to English while preserving the formatting. "
                     "Do not add any introductory or summary text. "
                     "Do not wrap the output in markdown or code blocks (no triple backticks). "
                     "Return only the translated LaTeX content, nothing else. "
                     "If the content is already entirely in English, return it unchanged."
-                )},
-                {"role": "user", "content": "Translate the LaTeX file from Russian to English and keep formatting"},
-                {"role": "user", "content": content}
-            ]
+            ),
+            input=content,
         )
         end_time = time.time()
         
-        translated_content = response.choices[0].message.content
+        translated_content = response.output_text
 
         # Calculate time spent
         time_spent = end_time - start_time
 
         # Accurate cost calculation
-        input_tokens = response.usage.prompt_tokens
-        output_tokens = response.usage.completion_tokens
+        input_tokens = response.usage.input_tokens
+        output_tokens = response.usage.output_tokens
 
         input_cost = input_tokens * 0.40 / 1_000_000  # $0.40 per 1M input tokens
         output_cost = output_tokens * 1.60 / 1_000_000  # $1.60 per 1M output tokens
