@@ -249,18 +249,21 @@ class FileProcessor:
         """Process all files in the input folder."""
         self.stats = ProcessingStats(0, 0, 0.0, 0.0, [], [], 0)
         
-        # Check if input_folder is a file or directory
-        if os.path.isfile(input_folder):
+        # Resolve symlink to the actual input folder path
+        actual_input_folder = os.path.realpath(input_folder)
+
+        # Check if actual_input_folder is a file or directory
+        if os.path.isfile(actual_input_folder):
             # Process single file
-            output_file_path = os.path.join(output_folder, os.path.basename(input_folder))
+            output_file_path = os.path.join(output_folder, os.path.basename(actual_input_folder))
             os.makedirs(output_folder, exist_ok=True)
             
-            result = await self.process_single_file(input_folder, output_file_path)
+            result = await self.process_single_file(actual_input_folder, output_file_path)
             self._update_stats(result)
             self._log_result(result)
         else:
             # Process directory
-            await self.process_directory(input_folder, output_folder)
+            await self.process_directory(actual_input_folder, output_folder)
 
         self._log_summary()
 
