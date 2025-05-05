@@ -228,6 +228,14 @@ class FileProcessor:
                     shutil.copy(input_file_path, output_file_path)
                     logger.info(f"Copied file: {file}")
 
+        # Process symlinks in the directory
+        for entry in os.listdir(input_folder):
+            entry_path = os.path.join(input_folder, entry)
+            if os.path.islink(entry_path):
+                linked_path = os.readlink(entry_path)
+                if os.path.isdir(linked_path):
+                    await self.process_directory(linked_path, output_folder)
+
         self.stats.total_files = len(tasks)
         
         # Process tasks concurrently with semaphore
