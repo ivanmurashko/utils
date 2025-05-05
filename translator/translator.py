@@ -203,6 +203,48 @@ class FileProcessor:
                 error=str(e)
             )
 
+    async def process_directory(self, input_folder: str, output_folder: str) -> None:
+        """Process all files in the input directory."""
+        os.makedirs(output_folder, exist_ok=True)
+        
+        # Collect all tasks
+        tasks = []
+        for root, _, files in os.walk(input_folder):
+            if os.path.basename(root).startswith('.'):
+                continue
+
+            for file in files:
+                if file.startswith('.'):
+                    continue
+                
+                input_file_path = os.path.join(root, file)
+                relative_path = os.path.relpath(input_file_path, input_folder)
+                output_file_path = os.path.join(output_folder, relative_path)
+
+                if file.endswith('.tex'):
+                    tasks.append(self.process_file(input_file_path, output_file_path))
+                else:
+                    os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+                    shutil.copy(input_file_path, output_file_path)
+                    logger.info(f"Copied file: {file}")
+
+        self.stats.total_files = len(tasks)
+        
+        # Process tasks concurrently with semaphore
+        semaphore = asyncio.Semaphore(self.max_workers)
+        
+        async def process_with_semaphore(task):
+            async with semaphore:
+                return await task
+
+        # Run tasks with progress bar
+        with tqdm(total=len(tasks), desc="Processing files") as pbar:
+            for task in asyncio.as_completed([process_with_semaphore(t) for t in tasks]):
+                result = await task
+                self._update_stats(result)
+                self._log_result(result)
+                pbar.update(1)
+
     async def process_files(self, input_folder: str, output_folder: str) -> None:
         """Process all files in the input folder."""
         self.stats = ProcessingStats(0, 0, 0.0, 0.0, [], [], 0)
@@ -218,45 +260,7 @@ class FileProcessor:
             self._log_result(result)
         else:
             # Process directory
-            os.makedirs(output_folder, exist_ok=True)
-            
-            # Collect all tasks
-            tasks = []
-            for root, _, files in os.walk(input_folder):
-                if os.path.basename(root).startswith('.'):
-                    continue
-
-                for file in files:
-                    if file.startswith('.'):
-                        continue
-                    
-                    input_file_path = os.path.join(root, file)
-                    relative_path = os.path.relpath(input_file_path, input_folder)
-                    output_file_path = os.path.join(output_folder, relative_path)
-
-                    if file.endswith('.tex'):
-                        tasks.append(self.process_file(input_file_path, output_file_path))
-                    else:
-                        os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
-                        shutil.copy(input_file_path, output_file_path)
-                        logger.info(f"Copied file: {file}")
-
-            self.stats.total_files = len(tasks)
-            
-            # Process tasks concurrently with semaphore
-            semaphore = asyncio.Semaphore(self.max_workers)
-            
-            async def process_with_semaphore(task):
-                async with semaphore:
-                    return await task
-
-            # Run tasks with progress bar
-            with tqdm(total=len(tasks), desc="Processing files") as pbar:
-                for task in asyncio.as_completed([process_with_semaphore(t) for t in tasks]):
-                    result = await task
-                    self._update_stats(result)
-                    self._log_result(result)
-                    pbar.update(1)
+            await self.process_directory(input_folder, output_folder)
 
         self._log_summary()
 
