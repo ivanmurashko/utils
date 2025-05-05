@@ -152,7 +152,7 @@ class FileProcessor:
         # If we've exhausted all retries
         raise last_error or Exception("Maximum retries exceeded")
 
-    async def process_file(self, input_file_path: str, output_file_path: str) -> TranslationResult:
+    async def process_single_file(self, input_file_path: str, output_file_path: str) -> TranslationResult:
         """Process a single file."""
         try:
             # Resolve symlink to the actual file path
@@ -222,7 +222,7 @@ class FileProcessor:
                 output_file_path = os.path.join(output_folder, relative_path)
 
                 if file.endswith('.tex'):
-                    tasks.append(self.process_file(input_file_path, output_file_path))
+                    tasks.append(self.process_single_file(input_file_path, output_file_path))
                 else:
                     os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
                     shutil.copy(input_file_path, output_file_path)
@@ -255,7 +255,7 @@ class FileProcessor:
             output_file_path = os.path.join(output_folder, os.path.basename(input_folder))
             os.makedirs(output_folder, exist_ok=True)
             
-            result = await self.process_file(input_folder, output_file_path)
+            result = await self.process_single_file(input_folder, output_file_path)
             self._update_stats(result)
             self._log_result(result)
         else:
